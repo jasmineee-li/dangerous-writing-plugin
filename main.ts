@@ -41,6 +41,7 @@ export default class DangerousWritingPlugin extends Plugin {
   // Idle watchdog
   private idleWatchdogTimeout: number | null = null;
   private lastActivityTime: number = 0;
+  private lastContentLength: number = 0;
   private warningOverlay: HTMLElement | null = null;
 
   // Status bar
@@ -114,7 +115,12 @@ export default class DangerousWritingPlugin extends Plugin {
         "editor-change",
         (editor: Editor, info: MarkdownView | { file: TFile }) => {
           if (this.sessionActive) {
-            this.resetIdleWatchdog();
+            const currentLength = editor.getValue().length;
+            // Only reset watchdog if content was ADDED (not deleted via backspace)
+            if (currentLength > this.lastContentLength) {
+              this.resetIdleWatchdog();
+            }
+            this.lastContentLength = currentLength;
           }
         }
       )
@@ -180,10 +186,19 @@ export default class DangerousWritingPlugin extends Plugin {
       return;
     }
 
-    await this.app.workspace.getRightLeaf(false)?.setViewState({
-      type: VIEW_TYPE_STATS,
-      active: true,
-    });
+    let leaf = this.app.workspace.getRightLeaf(false);
+    if (!leaf) {
+      leaf = this.app.workspace.getRightLeaf(true);
+    }
+    if (leaf) {
+      await leaf.setViewState({
+        type: VIEW_TYPE_STATS,
+        active: true,
+      });
+      this.app.workspace.revealLeaf(leaf);
+    } else {
+      new Notice("Unable to open stats view");
+    }
   }
 
   updateWarningStyles() {
@@ -200,7 +215,7 @@ export default class DangerousWritingPlugin extends Plugin {
     this.styleEl = document.createElement("style");
     this.styleEl.textContent = `
 			.dangerous-writing-warning-overlay {
-				transition: background-color 0.1s ease-out;
+				transition: background-color 0.25s ease-in-out;
 			}
 		`;
     document.head.appendChild(this.styleEl);
@@ -283,6 +298,7 @@ export default class DangerousWritingPlugin extends Plugin {
     this.sessionActive = true;
     this.activeFile = file;
     this.initialContent = editor.getValue();
+    this.lastContentLength = this.initialContent.length;
     this.initialWordCount = this.countWords(this.initialContent);
     this.sessionStartTime = Date.now();
 
@@ -363,7 +379,8 @@ export default class DangerousWritingPlugin extends Plugin {
   private startWarningInterval() {
     // Check every 50ms for smooth progression
     const checkInterval = 50;
-    const warningThreshold = this.settings.warningThresholdSeconds * 1000;
+    const warningThresholdMs = this.settings.warningThresholdSeconds * 1000;
+    const idleTimeoutMs = this.settings.idleTimeoutSeconds * 1000;
     const color = this.settings.warningColor;
     const r = parseInt(color.slice(1, 3), 16);
     const g = parseInt(color.slice(3, 5), 16);
@@ -376,7 +393,7 @@ export default class DangerousWritingPlugin extends Plugin {
       }
 
       const idleTime = Date.now() - this.lastActivityTime;
-      const remaining = this.settings.idleTimeoutSeconds * 1000 - idleTime;
+      const remaining = idleTimeoutMs - idleTime;
 
       if (remaining <= 0) {
         window.clearInterval(warningCheck);
@@ -386,15 +403,18 @@ export default class DangerousWritingPlugin extends Plugin {
         return;
       }
 
-      if (remaining <= warningThreshold && this.warningOverlay) {
-        // Smooth progression from 0 to 1 as remaining time approaches 0
-        const progress = 1 - remaining / warningThreshold;
-        // Use easing function for smoother transition (ease-out cubic)
-        const easedProgress = 1 - Math.pow(1 - progress, 3);
-        // Opacity ranges from 0.05 to 0.6 for smoother visual
-        const opacity = 0.05 + easedProgress * 0.55;
+      // Start warning when user has been idle for warningThreshold seconds
+      // (i.e., when remaining <= idleTimeout - warningThreshold)
+      if (idleTime >= warningThresholdMs && this.warningOverlay) {
+        // Progress from 0 (when idle for warningThreshold) to 1 (when idle for idleTimeout)
+        const warningDuration = idleTimeoutMs - warningThresholdMs;
+        const progress = (idleTime - warningThresholdMs) / warningDuration;
+        // Use sine easing for very smooth, gradual transition
+        const easedProgress = Math.sin((progress * Math.PI) / 2);
+        // Opacity ranges from 0 to 0.45 - starts invisible, ramps up smoothly
+        const opacity = easedProgress * 0.45;
         this.warningOverlay.style.backgroundColor = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-      } else if (remaining > warningThreshold && this.warningOverlay) {
+      } else if (idleTime < warningThresholdMs && this.warningOverlay) {
         this.warningOverlay.style.backgroundColor = "";
       }
     }, checkInterval);
@@ -559,6 +579,7 @@ export default class DangerousWritingPlugin extends Plugin {
     // Reset state
     this.activeFile = null;
     this.initialContent = "";
+    this.lastContentLength = 0;
     this.initialWordCount = 0;
     this.wordCountGoal = null;
     this.lastActivityTime = 0;
@@ -628,7 +649,9 @@ export default class DangerousWritingPlugin extends Plugin {
       )}`;
     }
 
-    if (idleRemaining <= this.settings.warningThresholdSeconds) {
+    // Show warning when user has been idle for warningThresholdSeconds
+    // (i.e., when idleSeconds >= warningThresholdSeconds)
+    if (idleSeconds >= this.settings.warningThresholdSeconds) {
       statusText += ` | ⚠️ ${idleRemaining}s idle`;
       this.statusBarEl.className =
         "dangerous-writing-status-bar active warning";
