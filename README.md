@@ -1,6 +1,6 @@
 # Zap! ⚡
 
-a dangerous writing plugin for Obsidian, inspired by the [Most Dangerous Writing App](https://www.squibler.io/dangerous-writing-prompt-app). run timed or word-goal writing sprints and keep typing—if you stop for more than 5 seconds, your content gets deleted!
+a dangerous writing plugin for Obsidian, inspired by the [Most Dangerous Writing App](https://www.squibler.io/dangerous-writing-prompt-app). run timed or word-goal writing sprints and keep typing—if you stop for more than 5 seconds, your content gets deleted ⏱️
 
 ## Features
 
