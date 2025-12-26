@@ -1,7 +1,7 @@
 {
-  "name": "dangerous-writing",
+  "name": "zap-writing",
   "version": "1.0.0",
-  "description": "Zap writing sprints for Obsidian with time or word goals",
+  "description": "Run timed or word-goal writing sprints where stopping deletes your content.",
   "main": "main.js",
   "scripts": {
     "dev": "node esbuild.config.mjs",
@@ -9,8 +9,13 @@
     "version": "node version-bump.mjs",
     "lint": "eslint . --ext .ts,.tsx"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "obsidian",
+    "plugin",
+    "writing",
+    "productivity"
+  ],
+  "author": "Jasmine Li",
   "license": "MIT",
   "devDependencies": {
     "@types/node": "^16.11.6",

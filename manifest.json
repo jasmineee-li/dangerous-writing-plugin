@@ -1,11 +1,10 @@
 {
-  "id": "dangerous-writing",
-  "name": "Zap: Dangerous Writing",
+  "id": "zap-writing",
+  "name": "Zap",
   "version": "1.0.0",
-  "minAppVersion": "0.15.0",
-  "description": "Zap writing sprints with time or word goals—keep typing or lose it.",
-  "author": "Your Name",
-  "authorUrl": "",
-  "fundingUrl": "",
+  "minAppVersion": "1.0.0",
+  "description": "Run Zap writing sprints with time or word goals -- keep typing or lose your content!",
+  "author": "Jasmine Li",
+  "authorUrl": "jasminexli.com",
   "isDesktopOnly": false
 }
